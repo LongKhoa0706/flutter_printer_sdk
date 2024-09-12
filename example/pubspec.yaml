@@ -26,7 +26,7 @@ dependencies:
     # path: ../
     git:
       url: https://github.com/rjgcs/flutter_printer_sdk.git
-      ref: v1.0.1
+      ref: v1.2.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -64,7 +64,6 @@ flutter:
     - assets/images/image.png
     - assets/images/nv_test.bmp
     - assets/label_test.pdf
-    - assets/label_test1.pdf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -20,7 +20,7 @@ class _PDFViewPageState extends State<PDFViewPage> {
   String _selectedCommand = 'TSPL';
 
   final pdfController = PdfController(
-    document: PdfDocument.openAsset('assets/label_test1.pdf'),
+    document: PdfDocument.openAsset('assets/label_test.pdf'),
   );
 
   @override
@@ -29,7 +29,7 @@ class _PDFViewPageState extends State<PDFViewPage> {
   }
 
   Future<void> _printPDF() async {
-    final document = await PdfDocument.openAsset('assets/label_test1.pdf');
+    final document = await PdfDocument.openAsset('assets/label_test.pdf');
 
     for (int i = 1; i <= document.pagesCount; i++) {
       final page = document.getPage(i);

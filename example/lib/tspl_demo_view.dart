@@ -29,8 +29,6 @@ class _TSPLDemoViewState extends State<TSPLDemoView> {
     print('Selected encoding: $_selectedCodepage');
     if (_selectedCodepage == 'UTF8') {
       _printerManager.setCodePage("UTF-8");
-    } else if (_selectedCodepage == 'Arabic') {
-      _printerManager.setCodePage("1256");
     }
   }
 
@@ -156,7 +154,7 @@ class _TSPLDemoViewState extends State<TSPLDemoView> {
                       _selectedCodepage = newValue!;
                     });
                   },
-                  items: <String>['UTF8','Arabic']
+                  items: <String>['UTF8']
                       .map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
@@ -181,7 +179,7 @@ class _TSPLDemoViewState extends State<TSPLDemoView> {
                       _selectedEncoding = newValue!;
                     });
                   },
-                  items: (Platform.isIOS?<String>['GB18030', 'UTF8','Arabic']:<String>['GB18030', 'UTF-8','windows-1256'])
+                  items: (Platform.isIOS?<String>['GB18030', 'UTF8']:<String>['GB18030', 'UTF-8'])
                       .map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
