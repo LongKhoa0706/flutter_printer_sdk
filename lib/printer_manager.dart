@@ -87,6 +87,12 @@ class PrinterManager {
     return result;
   }
 
+  Future<List> getUsbDevice() async {
+    final result = await _channel.invokeMethod('getUsbDevice');
+    return result;
+  }
+
+
   Future<void> startScan() async {
     try {
       await _channel.invokeMethod('startScan');

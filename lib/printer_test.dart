@@ -10,7 +10,7 @@ class PrinterTest {
   /// TSPL Demo
   List<Map<String, dynamic>> printContentTSPL() {
     TSPLCommand command = TSPLCommand();
-    command.sizeMm(60.0, 30.0)
+    command.sizeMm(38.0, 21.0)
         .gapInch(0.0, 0.0)
         .offsetInch(0.0)
         .speed(5.0)
@@ -33,7 +33,7 @@ class PrinterTest {
   List<Map<String, dynamic>> printContentTSPLWithCharSet(String charSet) {
     TSPLCommand command = TSPLCommand();
     command.setCharSet(charSet)
-        .sizeMm(60.0, 30.0)
+        .sizeMm(38.0, 21.0)
         .gapInch(0.0, 0.0)
         .offsetInch(0.0)
         .speed(5.0)
@@ -55,41 +55,46 @@ class PrinterTest {
 
   List<Map<String, dynamic>> printTextTSPL() {
     TSPLCommand command = TSPLCommand();
-    command.sizeMm(60.0, 60.0)
-        .density(10)
+    command.sizeMm(38.0, 21.0)
+        .gapMm(0.0, 0.0)
+        .density(12)
         .reference(0, 0)
         .direction(TSPLConst.DIRECTION_FORWARD)
         .cls()
-        .sendData(Uint8List.fromList('TEXT 10,10,"1",0,2,2,"FNT_8_12"\n'.codeUnits))
-        .text(10, 60,TSPLConst.FNT_12_20, "FNT_12_20", xRatio:2, yRatio:2)
-        .text(10, 120,TSPLConst.FNT_16_24, "FNT_16_24", xRatio:2, yRatio:2)
-        .text(10, 180,TSPLConst.FNT_24_32, "FNT_24_32", xRatio:2, yRatio:2)
-        .text(10, 240,TSPLConst.FNT_32_48, "FNT_32_48", xRatio:2, yRatio:2)
-        .text(10, 300,TSPLConst.FNT_14_19, "FNT_14_19", xRatio:2, yRatio:2)
-        .text(10, 360,TSPLConst.FNT_14_25, "FNT_14_25", xRatio:2, yRatio:2)
-        .text(10, 400,TSPLConst.FNT_21_27, "FNT_21_27", xRatio:2, yRatio:2)
+        .sendData(Uint8List.fromList('send'.codeUnits))
+        // .text(10, 60,TSPLConst.FNT_12_20, "FNT_12_20", xRatio:2, yRatio:2)
+        // .text(10, 120,TSPLConst.FNT_16_24, "FNT_16_24", xRatio:2, yRatio:2)
+        // .text(10, 180,TSPLConst.FNT_24_32, "FNT_24_32", xRatio:2, yRatio:2)
+        // .text(10, 240,TSPLConst.FNT_32_48, "FNT_32_48", xRatio:2, yRatio:2)
+        // .text(10, 300,TSPLConst.FNT_14_19, "FNT_14_19", xRatio:2, yRatio:2)
+        // .text(10, 360,TSPLConst.FNT_14_25, "FNT_14_25", xRatio:2, yRatio:2)
+        // .text(10, 400,TSPLConst.FNT_21_27, "FNT_21_27", xRatio:2, yRatio:2)
         .print();
     return command.getCommands();
   }
 
   List<Map<String, dynamic>> printBarcodeTSPL() {
     TSPLCommand command = TSPLCommand();
-    command.sizeMm(60.0, 30.0)
-        .gapMm(0.0, 0.0)
+    command.sizeMm(38.0, 21.0)
+        .gapMm(0.0, 2.0)
         .cls()
         .barcode(60, 50, TSPLConst.CODE_TYPE_128, 108, "abcdef12345")
         .print();
     return command.getCommands();
   }
 
-  Future<List<Map<String, dynamic>>> printPicTSPL() async{
+  Future<List<Map<String, dynamic>>> printPicTSPL(Uint8List fileUnit8List) async{
     TSPLCommand command = TSPLCommand();
-    final ByteData data = await rootBundle.load("assets/images/image.png");
-    Uint8List fileUnit8List = data.buffer
-        .asUint8List(data.offsetInBytes, data.lengthInBytes);
-    command.sizeMm(76.0, 40.0)
+
+    command.sizeMm(38.0, 21.0)
+        // .density(10).
+      // .offsetMm(15)
+        .gapMm(3.0, 10.0)
+        .density(10)
+        .reference(25, 0)
+        .direction(TSPLConst.DIRECTION_FORWARD)
         .cls()
-        .bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, 384, fileUnit8List)
+        .bitmap(10, 5, TSPLConst.BMP_MODE_OVERWRITE, 300, fileUnit8List)
         .print(count: 1);
     return command.getCommands();
   }
@@ -196,6 +201,19 @@ class PrinterTest {
       ..cutHalfAndFeed(1);
     return command.getCommands();
   }
+
+  Future<List<Map<String, dynamic>>> printCustomImage(Uint8List fileUnit8List ) async {
+    // final String base64Image = base64Encode(data.buffer.asUint8List());
+
+    final POSCommand command = POSCommand()
+      ..initializePrinter()
+    //..printBase64Bitmap(base64Image,384, alignment: POSConst.ALIGNMENT_CENTER)
+      ..printBitmap(fileUnit8List, 500, alignment: POSConst.ALIGNMENT_CENTER)
+      ..feedLine()
+      ..cutHalfAndFeed(1);
+    return command.getCommands();
+  }
+
 
   Future<List<Map<String, dynamic>>> selectBitmapModel() async {
     final ByteData data = await rootBundle.load("assets/images/nv_test.bmp");
