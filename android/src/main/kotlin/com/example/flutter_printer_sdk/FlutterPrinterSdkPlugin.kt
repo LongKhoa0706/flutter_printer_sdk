@@ -70,6 +70,7 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
       "disconnect" -> disconnect(result)
       "posPrinterStatus" -> posPrinterStatus(result)
       "getUsbPaths" -> getUsbPaths(result)
+      "getUsbDevice" -> getUsbDevice(result)
       "sendTSPL" -> sendTSPL(call,result)
       "getSerialNumber" -> getSerialNumber(result)
       "checkIsConnect" -> checkIsConnect(result)
@@ -124,7 +125,24 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
   private fun getUsbPaths(result: Result) {
     val usbs = POSConnect.getUsbDevices(POSConnect.getAppCtx())
+    usbs.forEach {
+      Log.i("LLLLLL", it)
+    };
     result.success(usbs)
+  }
+
+  private fun getUsbDevice(result: Result) {
+    val usbDevices = POSConnect.getUsbDevice(POSConnect.getAppCtx())
+
+    val deviceList = usbDevices.map { device ->
+      mapOf(
+        "name" to device.productName,
+        "vendor_id" to device.vendorId,
+        "product_id" to device.productId,
+        "device_name" to device.deviceName
+      )
+    }
+    result.success(deviceList)
   }
 
   private fun disconnect(result: Result) {
