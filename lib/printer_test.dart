@@ -95,8 +95,8 @@ class PrinterTest {
         .direction(TSPLConst.DIRECTION_FORWARD)
         .cls()
         .bitmap(10, 5, TSPLConst.BMP_MODE_OVERWRITE, 300, fileUnit8List)
-        .print(count: 1);
-        .sound(3, 200)
+        .print(count: 1)
+        .sound(3, 200);
     return command.getCommands();
   }
 
