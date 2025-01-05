@@ -49,6 +49,8 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private val TAG = "PrintersdkPlugin"
 
   private val PERMISSION_REQUEST_CODE = 1
+  private val printerConnections = mutableMapOf<String, IDeviceConnection>()
+
   private var permissionResult: Result? = null
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -83,6 +85,8 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
       "connectNet" -> connectNet(call,result)
       "setCodePage" -> setCodePage(call,result)
       "selectCodePage" -> selectCodePage(call,result)
+      "findUsbPathByVidPid" -> findUsbPathByVidPid(call, result)
+      "sound" -> sound(call, result)
       else -> result.notImplemented()
     }
   }
@@ -115,13 +119,51 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun connectUsb(call: MethodCall, result: Result) {
-    val path = (call.argument("path") as String?)!!
-    Log.i(TAG, "path:$path")
-    connect?.close()
-    connect = POSConnect.createDevice(POSConnect.DEVICE_TYPE_USB)
-    connect!!.connect(path, connectListener)
+    val path = call.argument<String>("path") ?: return
+    Log.i(TAG, "Connecting to USB printer: $path")
+
+    // Nếu đã kết nối trước đó, đóng lại kết nối cũ
+    printerConnections[path]?.close()
+
+    val connection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_USB)
+    connection.connect(path, connectListener)
+    printerConnections[path] = connection // Lưu kết nối theo đường dẫn USB
+
     result.success(null)
   }
+
+  private fun findUsbPathByVidPid(call: MethodCall, result: Result) {
+    val vendorId = call.argument<Int>("vendorId") ?: return result.error("MissingVendorId", "Vendor ID is missing", null)
+    val productId = call.argument<Int>("productId") ?: return result.error("MissingProductId", "Product ID is missing", null)
+    val name = call.argument<String>("name") ?: return result.error("name", "name  is missing", null)
+
+    // Tìm thiết bị USB dựa trên VID và PID
+    val usbDevices = POSConnect.getUsbDevice(POSConnect.getAppCtx())
+    val device = usbDevices.find {  it.productName == name && it.vendorId == vendorId && it.productId == productId  }
+
+    if (device != null) {
+      val path = device.deviceName // Lấy đường dẫn thiết bị
+      Log.i(TAG, "Found USB printer with path: $path")
+
+      // Đóng kết nối cũ nếu có
+      printerConnections[path]?.close()
+
+      // Tạo và kết nối mới
+      val connection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_USB)
+
+      try {
+        connection.connect(path, connectListener)
+        printerConnections[path] = connection // Lưu kết nối vào danh sách
+
+        result.success(path)
+      } catch (e: Exception) {
+        result.error("ConnectionFailed", "Failed to connect to printer: ${e.message}", null)
+      }
+    } else {
+      result.error("DeviceNotFound", "No device found for VID:$vendorId PID:$productId", null)
+    }
+  }
+
 
   private fun getUsbPaths(result: Result) {
     val usbs = POSConnect.getUsbDevices(POSConnect.getAppCtx())
@@ -137,9 +179,9 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     val deviceList = usbDevices.map { device ->
       mapOf(
         "name" to device.productName,
-        "vendor_id" to device.vendorId,
-        "product_id" to device.productId,
-        "device_name" to device.deviceName
+        "vendorId" to device.vendorId,
+        "productId" to device.productId,
+        "devicePath" to device.deviceName
       )
     }
     result.success(deviceList)
@@ -184,9 +226,25 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     }
   }
 
+
+  private fun disconnectUsb(call: MethodCall, result: Result) {
+    val path = call.argument<String>("path") ?: return
+    printerConnections[path]?.close()
+    printerConnections.remove(path)
+    result.success(null)
+  }
+
+
   private fun sendTSPL(call: MethodCall, result: Result) {
+    val path = call.argument<String>("path") ?: return result.error("PathMissing", "USB path is missing", null)
+    val connection = printerConnections[path] // Lấy kết nối từ danh sách
+    if (connection == null) {
+      return result.error("PrinterNotConnected", "No printer connected on path: $path", null)
+    }
+
     val data = call.argument<List<Map<String, Any>>>("data")
-    val printer = TSPLPrinter(connect)
+    val printer = TSPLPrinter(connection) // Tạo đối tượng printer dựa trên kết nối
+
 
     data?.forEach { command ->
       val method = command["method"] as String
@@ -400,8 +458,16 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun sendESC(call: MethodCall, result: Result) {
+
+    val path = call.argument<String>("path") ?: return result.error("PathMissing", "USB path is missing", null)
+    val connection = printerConnections[path] // Lấy kết nối từ danh sách
+
+    if (connection == null) {
+      return result.error("PrinterNotConnected", "No printer connected on path: $path", null)
+    }
+
     val data = call.argument<List<Map<String, Any>>>("data")
-    val printer = POSPrinter(connect).initializePrinter()
+    val printer = POSPrinter(connection).initializePrinter()
 
     data?.forEach { command ->
       val method = command["method"] as String
@@ -630,6 +696,62 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
       }
     }
   }
+
+  private fun sound(call: MethodCall, result: Result) {
+    val path = call.argument<String>("path") ?: return result.error("PathMissing", "USB path is missing", null)
+    val connection = printerConnections[path]
+    if (connection == null) {
+      result.error("PrinterNotConnected", "No active connection for path: $path", null)
+      return
+    }
+
+    Log.d("path",path)
+//    Log.d("connection",connection)
+    val times = call.argument<Int>("times") ?: 1
+    val duration = call.argument<Int>("duration") ?: 100
+    val interval = call.argument<Int>("interval") ?: 200
+
+    try {
+      val printer = POSPrinter(connection).initializePrinter()
+      printer.printString("Hello, this is a test print!") // In chuỗi văn bản
+      connection.sendData("Hello, this is a test print!".toByteArray())
+//      connection.sendData("\u0007".toByteArray()) // Lệnh Beep
+      connection.sendData(byteArrayOf(0x1B, 0x42, times.toByte(), (duration / 50).toByte()))
+      result.success(true)
+    } catch (e: Exception) {
+      result.error("PrintError", "Failed to print: ${e.message}", null)
+    }
+  }
+
+  private fun findAndConnectUsb(call: MethodCall, result: Result) {
+    val vendorId = call.argument<Int>("vendorId") ?: return result.error("MissingVendorId", "Vendor ID is missing", null)
+    val productId = call.argument<Int>("productId") ?: return result.error("MissingProductId", "Product ID is missing", null)
+
+    // Tìm thiết bị USB dựa trên VID và PID
+    val usbDevices = POSConnect.getUsbDevice(POSConnect.getAppCtx())
+    val device = usbDevices.find { it.vendorId == vendorId && it.productId == productId }
+
+    if (device != null) {
+      val path = device.deviceName // Lấy đường dẫn thiết bị
+      Log.i(TAG, "Found USB printer with path: $path")
+
+      // Đóng kết nối cũ nếu có
+      printerConnections[path]?.close()
+
+      // Tạo và kết nối mới
+      val connection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_USB)
+      try {
+        connection.connect(path, connectListener)
+        printerConnections[path] = connection // Lưu kết nối vào danh sách
+        result.success("Connected to printer at path: $path")
+      } catch (e: Exception) {
+        result.error("ConnectionFailed", "Failed to connect to printer: ${e.message}", null)
+      }
+    } else {
+      result.error("DeviceNotFound", "No device found for VID:$vendorId PID:$productId", null)
+    }
+  }
+
 
   private fun sendZPL(call: MethodCall, result: Result) {
     val data = call.argument<List<Map<String, Any>>>("data")

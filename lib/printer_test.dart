@@ -62,13 +62,13 @@ class PrinterTest {
         .direction(TSPLConst.DIRECTION_FORWARD)
         .cls()
         .sendData(Uint8List.fromList('send'.codeUnits))
-        // .text(10, 60,TSPLConst.FNT_12_20, "FNT_12_20", xRatio:2, yRatio:2)
-        // .text(10, 120,TSPLConst.FNT_16_24, "FNT_16_24", xRatio:2, yRatio:2)
-        // .text(10, 180,TSPLConst.FNT_24_32, "FNT_24_32", xRatio:2, yRatio:2)
-        // .text(10, 240,TSPLConst.FNT_32_48, "FNT_32_48", xRatio:2, yRatio:2)
-        // .text(10, 300,TSPLConst.FNT_14_19, "FNT_14_19", xRatio:2, yRatio:2)
-        // .text(10, 360,TSPLConst.FNT_14_25, "FNT_14_25", xRatio:2, yRatio:2)
-        // .text(10, 400,TSPLConst.FNT_21_27, "FNT_21_27", xRatio:2, yRatio:2)
+    // .text(10, 60,TSPLConst.FNT_12_20, "FNT_12_20", xRatio:2, yRatio:2)
+    // .text(10, 120,TSPLConst.FNT_16_24, "FNT_16_24", xRatio:2, yRatio:2)
+    // .text(10, 180,TSPLConst.FNT_24_32, "FNT_24_32", xRatio:2, yRatio:2)
+    // .text(10, 240,TSPLConst.FNT_32_48, "FNT_32_48", xRatio:2, yRatio:2)
+    // .text(10, 300,TSPLConst.FNT_14_19, "FNT_14_19", xRatio:2, yRatio:2)
+    // .text(10, 360,TSPLConst.FNT_14_25, "FNT_14_25", xRatio:2, yRatio:2)
+    // .text(10, 400,TSPLConst.FNT_21_27, "FNT_21_27", xRatio:2, yRatio:2)
         .print();
     return command.getCommands();
   }
@@ -83,20 +83,28 @@ class PrinterTest {
     return command.getCommands();
   }
 
-  Future<List<Map<String, dynamic>>> printPicTSPL(Uint8List fileUnit8List) async{
+  Future<List<Map<String, dynamic>>> printPicTSPL(Uint8List fileUnit8List,double width, double height) async{
     TSPLCommand command = TSPLCommand();
 
-    command.sizeMm(38.0, 21.0)
-        // .density(10).
-      // .offsetMm(15)
-        .gapMm(3.0, 10.0)
-        .density(10)
-        .reference(25, 0)
+
+    command.sizeMm(width, height )
+    // .density(10).
+    // .offsetMm(15)
+
+        .gapMm(0.0, 0.0)
+    // .offsetMm(2)
+    // .reference(25, 0)
         .direction(TSPLConst.DIRECTION_FORWARD)
         .cls()
-        .bitmap(10, 5, TSPLConst.BMP_MODE_OVERWRITE, 300, fileUnit8List)
-        .print(count: 1)
-        .sound(3, 200);
+    // .density(10)
+
+        .bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, 300, fileUnit8List)
+        .print(count: 2);
+    // .sound(3, 200);
+    // command.getCommands()
+    command.getCommands().forEach((e){
+      print('object $e');
+    });
     return command.getCommands();
   }
 
@@ -196,7 +204,7 @@ class PrinterTest {
 
     final POSCommand command = POSCommand()
       ..initializePrinter()
-      //..printBase64Bitmap(base64Image,384, alignment: POSConst.ALIGNMENT_CENTER)
+    //..printBase64Bitmap(base64Image,384, alignment: POSConst.ALIGNMENT_CENTER)
       ..printBitmap(fileUnit8List, 384, alignment: POSConst.ALIGNMENT_CENTER)
       ..feedLine()
       ..cutHalfAndFeed(1);
@@ -211,10 +219,16 @@ class PrinterTest {
     //..printBase64Bitmap(base64Image,384, alignment: POSConst.ALIGNMENT_CENTER)
       ..printBitmap(fileUnit8List, 500, alignment: POSConst.ALIGNMENT_CENTER)
       ..feedLine()
+      ..sound(1, 450)
       ..cutHalfAndFeed(1);
     return command.getCommands();
   }
 
+  Future<List<Map<String, dynamic>>> setSound() async {
+
+    final POSCommand command = POSCommand().sound(3, 450);
+    return command.getCommands();
+  }
 
   Future<List<Map<String, dynamic>>> selectBitmapModel() async {
     final ByteData data = await rootBundle.load("assets/images/nv_test.bmp");

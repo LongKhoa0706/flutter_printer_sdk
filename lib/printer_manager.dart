@@ -38,10 +38,12 @@ class PrinterManager {
     }
   }
 
-  Future<void> sendESC(List<Map<String, dynamic>> data) async {
+  Future<void> sendESC(String path,List<Map<String, dynamic>> data) async {
     try {
-      Map<String, Object> args = Map();
-      args['data'] = data;
+      Map<String, Object> args = {
+        'path': path, // Truyền đường dẫn USB
+        'data': data, // Truyền dữ liệu ESC
+      };
       await _channel.invokeMethod('sendESC', args);
     } on PlatformException catch (e) {
       print("Failed to sendESC: '${e.message}'.");
@@ -49,10 +51,12 @@ class PrinterManager {
     }
   }
 
-  Future<void> sendTSPL(List<Map<String, dynamic>> data) async {
+  Future<void> sendTSPL(String path,List<Map<String, dynamic>> data) async {
     try {
-      Map<String, Object> args = Map();
-      args['data'] = data;
+      Map<String, Object> args = {
+        'path': path, // Truyền đường dẫn USB
+        'data': data, // Truyền dữ liệu ESC
+      };
       await _channel.invokeMethod('sendTSPL', args);
     } on PlatformException catch (e) {
       print("Failed to sendTSPL: '${e.message}'.");
@@ -187,6 +191,25 @@ class PrinterManager {
     }
   }
 
+  Future<void> playSound({
+    int times = 1, // Số lần kêu
+    required String path , // Số lần kêu
+    int duration = 100, // Thời gian mỗi lần kêu (ms)
+    int interval = 200, // Thời gian nghỉ giữa các lần kêu (ms)
+  }) async {
+
+    try {
+      await _channel.invokeMethod('sound', {
+        'times': times,
+        'path' : path,
+        'duration': duration,
+        'interval': interval,
+      });
+    } on PlatformException catch (e) {
+      print("Failed to play sound: '${e.message}'.");
+    }
+  }
+
   Future<void> connectNet(String path, Function(int result) callback) async {
     try {
       _onConnectRet = callback;
@@ -194,6 +217,19 @@ class PrinterManager {
     } on PlatformException catch (e) {
       print("Failed to connect Usb: '${e.message}'.");
       throw e;
+    }
+  }
+
+  Future<String?> findUsbPathByVidPid(int vendorId, int productId,String name) async {
+    try {
+      return await _channel.invokeMethod('findUsbPathByVidPid', {
+        'vendorId': vendorId,
+        'productId': productId,
+        'name': name,
+      });
+    } on PlatformException catch (e) {
+      print("Failed to find USB path: ${e.message}");
+      return null;
     }
   }
 
@@ -206,7 +242,7 @@ class PrinterManager {
     }
   }
 
-   Future<String?> saveDataAsPDF(Uint8List data, String fileName,int width,int height,bool isShow) async {
+  Future<String?> saveDataAsPDF(Uint8List data, String fileName,int width,int height,bool isShow) async {
     try {
       final result = await _channel.invokeMethod('saveDataAsPDF', {
         'data': data,
