@@ -179,11 +179,10 @@ class FlutterPrinterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     val deviceList = usbDevices.map { device ->
       mapOf(
         "name" to device.productName,
-        "vendorId" to device.vendorId,
-        "productId" to device.productId,
-        "devicePath" to device.deviceName
-      )
-    }
+        "vendor_id" to device.vendorId,
+        "product_id" to device.productId,
+        "device_name" to device.deviceName
+      )    }
     result.success(deviceList)
   }
 
