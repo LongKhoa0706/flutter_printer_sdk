@@ -76,7 +76,7 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
             "sendTSPL" -> sendTSPL(call, result)
             "getSerialNumber" -> getSerialNumber(result)
             "checkIsConnect" -> checkIsConnect(result)
-            "openCashBox" -> openCashBox(result)
+            "openCashBox" -> openCashBox(call,result)
             "labelPrinterStatus" -> labelPrinterStatus(call, result)
             "connectUsb" -> connectUsb(call, result)
             "setBluetooth" -> setBluetooth(call, result)
@@ -203,8 +203,22 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
         result.success(null)
     }
 
-    private fun openCashBox(result: Result) {
-        POSPrinter(connect).openCashBox(POSConst.PIN_TWO)
+    private fun openCashBox(call: MethodCall,result: Result) {
+        val path = call.argument<String>("path") ?: return result.error("PathMissing", "USB path is missing", null)
+        val connection = printerConnections[path]
+        if (connection == null) {
+            result.error("PrinterNotConnected", "No active connection for path: $path", null)
+            return
+        }
+
+        try {
+            val printer = POSPrinter(connection).initializePrinter()
+            printer.openCashBox(POSConst.PIN_TWO) // Mở ngăn kéo tiền mặt
+            Log.d("CashBoxDebug", "Cash box opened successfully")
+            result.success("Cash box opened")
+        } catch (e: Exception) {
+            result.error("CashBoxError", "Failed to open cash box: ${e.message}", null)
+        }
         result.success(null)
     }
 
@@ -632,14 +646,14 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
                     printer.cutPaper(model)
                 }
 
-                "openCashBox" -> {
-                    val pinNum = params?.get("pinNum") as? Int
-                    val onTime = params?.get("onTime") as? Int ?: 30
-                    val offTime = params?.get("offTime") as? Int ?: 255
-                    if (pinNum != null) {
-                        printer.openCashBox(pinNum, onTime, offTime)
-                    }
-                }
+//                "openCashBox" -> {
+//                    val pinNum = params?.get("pinNum") as? Int
+//                    val onTime = params?.get("onTime") as? Int ?: 30
+//                    val offTime = params?.get("offTime") as? Int ?: 255
+//                    if (pinNum != null) {
+//                        printer.openCashBox(pinNum, onTime, offTime)
+//                    }
+//                }
 
                 "setCharSet" -> {
                     val charSet = params?.get("charSet") as? String
@@ -815,32 +829,23 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
     }
 
     private fun sound(call: MethodCall, result: Result) {
-        val path = call.argument<String>("path") ?: return result.error(
-            "PathMissing",
-            "USB path is missing",
-            null
-        )
+        val path = call.argument<String>("path") ?: return result.error("PathMissing", "USB path is missing", null)
         val connection = printerConnections[path]
         if (connection == null) {
             result.error("PrinterNotConnected", "No active connection for path: $path", null)
             return
         }
 
-        Log.d("path", path)
-//    Log.d("connection",connection)
-        val times = call.argument<Int>("times") ?: 1
-        val duration = call.argument<Int>("duration") ?: 100
-        val interval = call.argument<Int>("interval") ?: 200
+        val times = call.argument<Int>("times") ?: 1 // Số beep liên tiếp trong một lệnh
+        val duration = call.argument<Int>("duration") ?: 100 // Thời gian mỗi beep (ms)
 
         try {
-            val printer = POSPrinter(connection).initializePrinter()
-            printer.printString("Hello, this is a test print!") // In chuỗi văn bản
-            connection.sendData("Hello, this is a test print!".toByteArray())
-//      connection.sendData("\u0007".toByteArray()) // Lệnh Beep
+            // Gửi lệnh beep với số beep liên tiếp được cấu hình
             connection.sendData(byteArrayOf(0x1B, 0x42, times.toByte(), (duration / 50).toByte()))
+            Log.d("SoundDebug", "Beep command sent: times=$times, duration=$duration")
             result.success(true)
         } catch (e: Exception) {
-            result.error("PrintError", "Failed to print: ${e.message}", null)
+            result.error("SoundError", "Failed to execute beep: ${e.message}", null)
         }
     }
 
