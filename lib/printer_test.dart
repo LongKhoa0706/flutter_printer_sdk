@@ -99,7 +99,7 @@ class PrinterTest {
     // .density(10)
 
         .bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, 300, fileUnit8List)
-        .print(count: 2);
+        .print(count: 1);
     // .sound(3, 200);
     // command.getCommands()
     command.getCommands().forEach((e){
@@ -219,16 +219,16 @@ class PrinterTest {
     //..printBase64Bitmap(base64Image,384, alignment: POSConst.ALIGNMENT_CENTER)
       ..printBitmap(fileUnit8List, 500, alignment: POSConst.ALIGNMENT_CENTER)
       ..feedLine()
-      ..sound(1, 450)
+    // ..sound(1, 450)
       ..cutHalfAndFeed(1);
     return command.getCommands();
   }
 
-  Future<List<Map<String, dynamic>>> setSound() async {
-
-    final POSCommand command = POSCommand().sound(3, 450);
-    return command.getCommands();
-  }
+  // Future<List<Map<String, dynamic>>> setSound() async {
+  //
+  //   final POSCommand command = POSCommand().sound(3, 450);
+  //   return command.getCommands();
+  // }
 
   Future<List<Map<String, dynamic>>> selectBitmapModel() async {
     final ByteData data = await rootBundle.load("assets/images/nv_test.bmp");
