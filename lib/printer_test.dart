@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/services.dart';
 import 'pos_command.dart';
 import 'tspl_command.dart';
@@ -84,7 +86,7 @@ class PrinterTest {
   }
 
   Future<List<Map<String, dynamic>>> printPicTSPL(
-      {Uint8List fileUnit8List, double width = 0.0, double height = 0.0,int widthBitmap = 0,double gapM = 0.0,int bitMapx = 0,int bitMapy = 0}) async {
+      {Uint8List? fileUnit8List, double width = 0.0, double height = 0.0,int widthBitmap = 0,double gapM = 0.0,int bitMapx = 0,int bitMapy = 0}) async {
     TSPLCommand command = TSPLCommand();
 
 
