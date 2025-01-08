@@ -83,30 +83,28 @@ class PrinterTest {
     return command.getCommands();
   }
 
-  Future<List<Map<String, dynamic>>> printPicTSPL(Uint8List fileUnit8List,double width, double height) async{
+  Future<List<Map<String, dynamic>>> printPicTSPL(
+      {Uint8List fileUnit8List, double width = 0.0, double height = 0.0,int widthBitmap = 0,double gapM = 0.0,int bitMapx = 0,int bitMapy = 0}) async {
     TSPLCommand command = TSPLCommand();
 
 
-    command.sizeMm(width, height )
+    command.sizeMm(width , height ?? 0 )
     // .density(10).
     // .offsetMm(15)
 
-        .gapMm(0.0, 0.0)
+        .gapMm(gapM ?? 0, 0.0)
     // .offsetMm(2)
     // .reference(25, 0)
         .direction(TSPLConst.DIRECTION_FORWARD)
         .cls()
     // .density(10)
-
-        .bitmap(0, 0, TSPLConst.BMP_MODE_OVERWRITE, 300, fileUnit8List)
+        .bitmap(bitMapx, bitMapy, TSPLConst.BMP_MODE_OVERWRITE, widthBitmap, fileUnit8List!)
         .print(count: 1);
     // .sound(3, 200);
     // command.getCommands()
-    command.getCommands().forEach((e){
-      print('object $e');
-    });
     return command.getCommands();
   }
+
 
   Future<List<Map<String, dynamic>>> bitmapCompressionTSPL() async{
     TSPLCommand command = TSPLCommand();
