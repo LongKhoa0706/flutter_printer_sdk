@@ -196,6 +196,13 @@ class PrinterTest {
     return command.getCommands();
   }
 
+ List<Map<String, dynamic>> openCashBoxs() {
+   POSCommand command = POSCommand();
+   command.initializePrinter().openCashBox(0);
+   return command.getCommands();
+
+  }
+
   Future<List<Map<String, dynamic>>> printPicPOS() async {
     final ByteData data = await rootBundle.load("assets/images/nv_test.bmp");
     Uint8List fileUnit8List = data.buffer

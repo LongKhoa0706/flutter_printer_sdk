@@ -143,9 +143,12 @@ class PrinterManager {
     }
   }
 
-  Future<void> openCashBox() async {
+  Future<void> openCashBox(String path) async {
     try {
-      await _channel.invokeMethod('openCashBox');
+      Map<String, Object> args = {
+        'path': path, // Truyền đường dẫn USB
+      };
+      await _channel.invokeMethod('openCashBox',args);
     } on PlatformException catch (e) {
       print("Failed to openCashBox: '${e.message}'.");
     }
