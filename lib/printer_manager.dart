@@ -96,13 +96,22 @@ class PrinterManager {
     return result;
   }
 
+  // Future<List> getUsbDevice() async {
+  //   final result = await _channel.invokeMethod('getUsbDevice');
+  //   return result;
+  // }
 
-  Future<void> startScan() async {
-    try {
-      await _channel.invokeMethod('startScan');
-    } on PlatformException catch (e) {
-      print("Failed to start scan: '${e.message}'.");
-    }
+  // Future<void> startScan() async {
+  //   try {
+  //     await _channel.invokeMethod('startScan');
+  //   } on PlatformException catch (e) {
+  //     print("Failed to start scan: '${e.message}'.");
+  //   }
+  // }
+
+  Future<List> startScan() async {
+    var result =  await _channel.invokeMethod('startScans');
+    return result;
   }
 
   Future<void> disconnect() async {
@@ -180,6 +189,20 @@ class PrinterManager {
       await _channel.invokeMethod('connectBt', {"address": address});
     } on PlatformException catch (e) {
       print("Failed to connect Bluetooth: '${e.message}'.");
+      throw e;
+    }
+  }
+
+  Future<void> sendESCBlue(String address, Uint8List data) async {
+    try {
+
+      Map<String, Object> args = {
+        'address': address,
+        'data': data,
+      };
+      await _channel.invokeMethod('sendESCBluetooth', args);
+    } on PlatformException catch (e) {
+      print("Failed to sendESC: '${e.message}'.");
       throw e;
     }
   }

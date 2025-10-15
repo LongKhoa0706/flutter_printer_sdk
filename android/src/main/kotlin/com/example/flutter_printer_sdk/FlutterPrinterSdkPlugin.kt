@@ -50,6 +50,7 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
 
     private val PERMISSION_REQUEST_CODE = 1
     private val printerConnections = mutableMapOf<String, IDeviceConnection>()
+    private val bluetoothConnections = mutableMapOf<String, IDeviceConnection>() // MAC address -> connection
 
     private var permissionResult: Result? = null
 
@@ -59,16 +60,18 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
         context = flutterPluginBinding.applicationContext
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         POSConnect.init(context)
-        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        context.registerReceiver(receiver, filter)
+//        val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+//        context.registerReceiver(receiver, filter)
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "checkPermissions" -> checkPermissions(result)
             "startScan" -> startScan(result)
+            "startScans" -> startScans(result)
             "connectBt" -> connectBt(call, result)
             "sendESC" -> sendESC(call, result)
+            "sendESCBluetooth" -> sendESCBluetooth(call, result)
             "disconnect" -> disconnect(result)
             "posPrinterStatus" -> posPrinterStatus(result)
             "getUsbPaths" -> getUsbPaths(result)
@@ -828,6 +831,33 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
         }
     }
 
+
+    private fun sendESCBluetooth(call: MethodCall, result: Result) {
+        val address = call.argument<String>("address") ?: return result.error(
+            "AddressMissing",
+            "Bluetooth address is missing",
+            null
+        )
+
+        val connection = bluetoothConnections[address]
+        if (connection == null) {
+            return result.error("PrinterNotConnected", "No Bluetooth printer connected on address: $address", null)
+        }
+
+        // Nhận trực tiếp ByteArray (Flutter's Uint8List được convert thành byte[] trong Java/Kotlin)
+        val dataBytes = call.argument<ByteArray>("data") ?: return result.error(
+            "DataMissing",
+            "Print data is missing",
+            null
+        )
+        // Gửi data
+        POSPrinter(connection).sendData(dataBytes)
+        result.success(null)
+    }
+
+
+
+
     private fun sound(call: MethodCall, result: Result) {
         val path = call.argument<String>("path") ?: return result.error("PathMissing", "USB path is missing", null)
         val connection = printerConnections[path]
@@ -1063,11 +1093,20 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
 
 
     private fun connectBt(call: MethodCall, result: Result) {
-        val address = (call.argument("address") as String?)!!
-        Log.i(TAG, "address:$address")
-        connect?.close()
-        connect = POSConnect.createDevice(POSConnect.DEVICE_TYPE_BLUETOOTH)
-        connect!!.connect(address, connectListener)
+        val address = call.argument<String>("address") ?: return result.error(
+            "AddressMissing",
+            "Bluetooth address is missing",
+            null
+        )
+        Log.i(TAG, "Connecting to Bluetooth printer: $address")
+
+        // Đóng kết nối cũ nếu có
+        bluetoothConnections[address]?.close()
+
+        val connection = POSConnect.createDevice(POSConnect.DEVICE_TYPE_BLUETOOTH)
+        connection.connect(address, connectListener)
+        bluetoothConnections[address] = connection // Lưu vào map Bluetooth
+
         result.success(null)
     }
 
@@ -1189,12 +1228,101 @@ class FlutterPrinterSdkPlugin : FlutterPlugin, MethodCallHandler, ActivityAware 
             result.error("Bluetooth not supported", "This device does not support Bluetooth", null)
         }
     }
+    private fun startScans(result: Result) {
+        bluetoothAdapter?.let { adapter ->
+            // Danh sách thiết bị tìm thấy (local variable)
+            val discoveredDevices = mutableListOf<Map<String, String>>()
+
+            // Tạo receiver ngay trong hàm
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    Log.d(TAG, "BroadcastReceiver ${intent.action}")
+
+                    when (intent.action) {
+
+                        BluetoothDevice.ACTION_FOUND -> {
+                            val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                            Log.d(TAG, "Found device: ${device?.name}")
+
+                            if (device != null && device.address != null) {
+                                Log.d(TAG, "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDD ${device?.name}")
+
+                                val deviceInfo = mapOf(
+                                    "name" to (device.name ?: "Unknown"),
+                                    "vendor_id" to device.address
+                                )
+
+                                // Tránh trùng lặp
+                                if (discoveredDevices.none { existing -> existing["address"] == device.address }) {
+                                    discoveredDevices.add(deviceInfo)
+                                }
+//                              context.unregisterReceiver(this)
+
+
+                            } else {
+                                Log.w(TAG, "Device or address is null, skipping...")
+                            }
+
+                        }
+
+
+                        BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                            Log.d(TAG, "Scan completed. Found ${discoveredDevices.size} devices")
+
+                            // Unregister receiver
+                            try {
+                                context.unregisterReceiver(this)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error unregistering receiver: ${e.message}")
+                            }
+
+                            // Trả về kết quả
+                            result.success(discoveredDevices.toList())
+                        }
+                    }
+                }
+            }
+
+            // Đăng ký receiver
+            val filter = IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_FOUND)
+                addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            }
+            context.registerReceiver(receiver, filter)
+
+            // Bắt đầu scan
+            if (adapter.isDiscovering) {
+                adapter.cancelDiscovery()
+                Handler(Looper.getMainLooper()).postDelayed({
+                    adapter.startDiscovery()
+                }, 300)
+            } else {
+                adapter.startDiscovery()
+            }
+
+            // Optional: Set timeout để đảm bảo không scan mãi mãi
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (adapter.isDiscovering) {
+                    adapter.cancelDiscovery()
+                    // Nếu timeout, vẫn trả về những gì đã tìm được
+                    try {
+                        context.unregisterReceiver(receiver)
+                    } catch (e: Exception) {
+                        // Receiver có thể đã được unregister
+                    }
+                    result.success(discoveredDevices.toList())
+                }
+            }, 15000) // 15 giây timeout
+
+        } ?: run {
+            result.error("Bluetooth not supported", "This device does not support Bluetooth", null)
+        }
+    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (BluetoothDevice.ACTION_FOUND == intent.action) {
-                val device: BluetoothDevice? =
-                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 device?.name?.let { name ->
                     device?.address?.let { address ->
                         channel.invokeMethod(
